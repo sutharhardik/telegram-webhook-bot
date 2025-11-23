@@ -11,7 +11,7 @@ TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 CHAT_FILE = "chat_id.txt"
 
 
-# ------------------------ Basic Telegram Sender ------------------------
+# ------------------------ Send Telegram Message ------------------------
 def send_msg(chat_id, text):
     try:
         requests.post(
@@ -19,7 +19,7 @@ def send_msg(chat_id, text):
             json={"chat_id": chat_id, "text": text}
         )
     except Exception as e:
-        print("Send error:", e)
+        pass
 
 
 def get_user_chat_id():
@@ -39,50 +39,35 @@ def save_user_chat_id(chat_id):
         pass
 
 
-# ------------------------ AI Generator (Heart of the System) ------------------------
+# ------------------------ AI Generator with TELEGRAM DEBUGGING ------------------------
 def ai_generate_reply(user_text, mode="reply"):
-    """
-    mode = reply | daily_joke | special
-    """
 
+    # Build prompt
     if mode == "reply":
         prompt = f"""
-You are Hardik replying to his fiancée.
+You are Hardik replying to his fiancée in Gujarati/Hinglish.
+Flirty, romantic, sweet, teasing. Under 25 words.
 
-Language = Gujarati + Hinglish.
-Tone = cute, romantic, teasing, flirty, emotional, natural, warm.
-Reply under 25 words.
-
-Her message:
-"{user_text}"
-
-Reply EXACTLY like Hardik would.
+Her message: "{user_text}"
 """
 
     elif mode == "daily_joke":
         prompt = """
-Generate one Gujarati/Hinglish short romantic/flirty cute joke.
-Keep it < 20 words, playful and sweet.
+Give one Gujarati/Hinglish short romantic or flirty cute joke under 20 words.
 """
 
     elif mode == "special":
         prompt = """
-Create a very romantic Gujarati/Hinglish emotional message that feels warm and loving.
-Keep it under 25 words.
+Write an emotional Gujarati/Hinglish romantic message under 25 words.
 """
 
-    # ---------------- DEBUG LOGGING ----------------
-    print("\n========== AI DEBUG START ==========")
-    print("Mode:", mode)
-    print("Prompt:", prompt)
-    print("API KEY PRESENT:", bool(OPENAI_KEY))
-    print("====================================\n")
-
+    # Check API key
     if not OPENAI_KEY:
-        print("ERROR: OPENAI_API_KEY missing from environment!")
+        send_msg(DEV_CHAT_ID, "💥 ERROR: Missing OPENAI_API_KEY on Render")
         return "Aww… tu mara mate hamesha special j cho ❤️"
 
     try:
+        # Make API call
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers={
@@ -92,31 +77,40 @@ Keep it under 25 words.
             json={
                 "model": "gpt-4o-mini",
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 80,
+                "max_tokens": 120,
                 "temperature": 1.0
             },
             timeout=20
         )
 
-        # Print full response details
-        print("AI STATUS:", response.status_code)
-        print("AI RAW RESPONSE:", response.text)
+        # Parse raw response
+        raw = response.text
+        status = response.status_code
+
+        # If NOT success
+        if status != 200:
+            send_msg(DEV_CHAT_ID,
+                     f"🔥 AI ERROR\nSTATUS={status}\nRAW={raw}")
+            return "Aww baby… thodu error aayu, pan tu perfect lage che ❤️"
 
         data = response.json()
 
-        # If OpenAI returns error JSON
+        # If OpenAI returns an error JSON
         if "error" in data:
-            print("OPENAI ERROR:", data["error"])
+            send_msg(DEV_CHAT_ID,
+                     f"🔥 OPENAI ERROR BLOCK:\n{json.dumps(data['error'], indent=2)}")
             return "Aww baby… thodu error aayu, pan tu perfect lage che ❤️"
 
+        # Success
         return data["choices"][0]["message"]["content"].strip()
 
     except Exception as e:
-        print("EXCEPTION WHILE CALLING AI:", str(e))
+        # ANY exception → send to you on Telegram
+        send_msg(DEV_CHAT_ID, f"🔥 EXCEPTION:\n{str(e)}")
         return "Aww tu to bas perfect lage che ❤️"
 
 
-# ------------------------ AI Daily Joke Scheduler ------------------------
+# ------------------------ Daily Joke Scheduler ------------------------
 def ai_daily_scheduler():
     while True:
         try:
@@ -131,14 +125,14 @@ def ai_daily_scheduler():
 
             time.sleep(20)
         except Exception as e:
-            print("Scheduler error:", e)
+            send_msg(DEV_CHAT_ID, f"🔥 Scheduler Error:\n{str(e)}")
             time.sleep(30)
 
 
 threading.Thread(target=ai_daily_scheduler, daemon=True).start()
 
 
-# ------------------------ Webhook: Full AI Mode ------------------------
+# ------------------------ Webhook ------------------------
 @app.route("/", methods=["GET"])
 def home():
     return "AI Companion Bot Running", 200
@@ -148,7 +142,6 @@ def home():
 def webhook():
     try:
         data = request.json
-        print("Incoming:", data)
 
         if "message" not in data:
             return "OK", 200
@@ -159,26 +152,27 @@ def webhook():
 
         save_user_chat_id(chat_id)
 
-        # Notify dev (you)
+        # Notify you with raw message
         if DEV_CHAT_ID:
-            send_msg(DEV_CHAT_ID, f"Her: {text}")
+            send_msg(DEV_CHAT_ID, f"💌 Her: {text}")
 
-        # Special emotional phrase handling
+        # Romantic triggers
         if "love you" in text.lower() or "miss you" in text.lower():
             reply = ai_generate_reply(text, mode="special")
             send_msg(chat_id, reply)
             return "OK", 200
 
-        # Default full AI reply
+        # Normal AI reply
         reply = ai_generate_reply(text, mode="reply")
         send_msg(chat_id, reply)
 
     except Exception as e:
-        print("Webhook error:", e)
+        send_msg(DEV_CHAT_ID, f"🔥 Webhook Error:\n{str(e)}")
 
     return "OK", 200
 
 
+# ------------------------ Run Flask ------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
