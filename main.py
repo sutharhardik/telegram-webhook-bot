@@ -1,4 +1,3 @@
-
 from flask import Flask, request
 import requests, os, json, datetime
 
@@ -9,7 +8,10 @@ MY_CHAT_ID = os.environ.get("DEV_CHAT_ID")  # Your chat ID
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 def send_msg(chat_id, text):
-    requests.post(f"{TELEGRAM_API}/sendMessage", json={"chat_id": chat_id, "text": text})
+    try:
+        requests.post(f"{TELEGRAM_API}/sendMessage", json={"chat_id": chat_id, "text": text})
+    except Exception as e:
+        print("Send error:", e)
 
 @app.route("/", methods=["GET"])
 def home():
@@ -20,7 +22,7 @@ def webhook():
     data = request.json
     print("Incoming:", data)
 
-    if "message" in data:
+    if data and "message" in data:
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
 
@@ -37,4 +39,9 @@ def webhook():
         auto = replies[len(text) % len(replies)]
         send_msg(chat_id, auto)
 
-    return "OK"
+    return "OK", 200
+
+# 🔥 THIS WAS MISSING — Render needs this to start the server
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
