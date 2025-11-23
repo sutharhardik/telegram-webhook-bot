@@ -14,8 +14,10 @@ CHAT_FILE = "chat_id.txt"
 # ------------------------ Basic Telegram Sender ------------------------
 def send_msg(chat_id, text):
     try:
-        requests.post(f"{TELEGRAM_API}/sendMessage",
-                      json={"chat_id": chat_id, "text": text})
+        requests.post(
+            f"{TELEGRAM_API}/sendMessage",
+            json={"chat_id": chat_id, "text": text}
+        )
     except Exception as e:
         print("Send error:", e)
 
@@ -47,42 +49,41 @@ def ai_generate_reply(user_text, mode="reply"):
         prompt = f"""
 You are Hardik replying to his fiancée.
 
-Language style:
-- Gujarati + Hinglish mix
-- Cute, romantic, teasing, flirty
-- Personal tone, NO robotic words
-- Keep it emotional, natural, warm
-- If she flirts, flirt back playfully
-- If she is angry, reply soft and caring
-- If she sends normal text, reply sweetly
-- MAX 25 words
+Language = Gujarati + Hinglish.
+Tone = cute, romantic, teasing, flirty, emotional, natural, warm.
+Reply under 25 words.
 
 Her message:
 "{user_text}"
 
-Reply exactly like Hardik would.
+Reply EXACTLY like Hardik would.
 """
 
     elif mode == "daily_joke":
         prompt = """
-Create one Gujarati/Hinglish sweet/flirty romantic joke or lovable teasing message.
-Style:
-- Very cute
-- Short
-- Playful
-- Feels like interest/love
-- 1–2 lines MAX
+Generate one Gujarati/Hinglish short romantic/flirty cute joke.
+Keep it < 20 words, playful and sweet.
 """
 
     elif mode == "special":
         prompt = """
-Generate a very romantic Gujarati/Hinglish surprise message that feels emotional, loving, warm.
-Something that would melt her heart.
+Create a very romantic Gujarati/Hinglish emotional message that feels warm and loving.
 Keep it under 25 words.
 """
 
+    # ---------------- DEBUG LOGGING ----------------
+    print("\n========== AI DEBUG START ==========")
+    print("Mode:", mode)
+    print("Prompt:", prompt)
+    print("API KEY PRESENT:", bool(OPENAI_KEY))
+    print("====================================\n")
+
+    if not OPENAI_KEY:
+        print("ERROR: OPENAI_API_KEY missing from environment!")
+        return "Aww… tu mara mate hamesha special j cho ❤️"
+
     try:
-        r = requests.post(
+        response = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers={
                 "Content-Type": "application/json",
@@ -93,13 +94,25 @@ Keep it under 25 words.
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 80,
                 "temperature": 1.0
-            }
-        ).json()
+            },
+            timeout=20
+        )
 
-        return r["choices"][0]["message"]["content"].strip()
+        # Print full response details
+        print("AI STATUS:", response.status_code)
+        print("AI RAW RESPONSE:", response.text)
+
+        data = response.json()
+
+        # If OpenAI returns error JSON
+        if "error" in data:
+            print("OPENAI ERROR:", data["error"])
+            return "Aww baby… thodu error aayu, pan tu perfect lage che ❤️"
+
+        return data["choices"][0]["message"]["content"].strip()
 
     except Exception as e:
-        print("AI ERROR:", e)
+        print("EXCEPTION WHILE CALLING AI:", str(e))
         return "Aww tu to bas perfect lage che ❤️"
 
 
@@ -125,7 +138,7 @@ def ai_daily_scheduler():
 threading.Thread(target=ai_daily_scheduler, daemon=True).start()
 
 
-# ------------------------ Webhook: Uses Full AI Mode ------------------------
+# ------------------------ Webhook: Full AI Mode ------------------------
 @app.route("/", methods=["GET"])
 def home():
     return "AI Companion Bot Running", 200
@@ -150,13 +163,13 @@ def webhook():
         if DEV_CHAT_ID:
             send_msg(DEV_CHAT_ID, f"Her: {text}")
 
-        # Special emotional phrase trigger
+        # Special emotional phrase handling
         if "love you" in text.lower() or "miss you" in text.lower():
             reply = ai_generate_reply(text, mode="special")
             send_msg(chat_id, reply)
             return "OK", 200
 
-        # Normal AI reply for every message
+        # Default full AI reply
         reply = ai_generate_reply(text, mode="reply")
         send_msg(chat_id, reply)
 
