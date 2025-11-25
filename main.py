@@ -60,7 +60,7 @@ def ai_generate(prompt_text):
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {GROQ_API_KEY}"
+            "Authorization": f"Bearer {GROQ_KEY}"
         }
 
         payload = {
