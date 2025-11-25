@@ -3,25 +3,28 @@ import requests, os, json, threading, time, datetime, sys
 
 app = Flask(__name__)
 
+# ---------------------------------------------------------
+# ENVIRONMENT VARIABLES
+# ---------------------------------------------------------
 TOKEN = os.environ.get("BOT_TOKEN")
 DEV_CHAT_ID = os.environ.get("DEV_CHAT_ID")
-DEEPSEEK_KEY = os.environ.get("DEEPSEEK_API_KEY")
+GROQ_KEY = os.environ.get("GROQ_API_KEY")
 
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 CHAT_FILE = "chat_id.txt"
 
 
-# -----------------------------------
-# Utility: log that actually shows in Render
-# -----------------------------------
+# ---------------------------------------------------------
+# REAL LOGGING (Render compatible)
+# ---------------------------------------------------------
 def log(msg):
     sys.stderr.write(str(msg) + "\n")
     sys.stderr.flush()
 
 
-# -----------------------------------
+# ---------------------------------------------------------
 # Telegram sender
-# -----------------------------------
+# ---------------------------------------------------------
 def send_msg(chat_id, text):
     try:
         requests.post(
@@ -49,85 +52,74 @@ def get_chat_id():
     return None
 
 
-# -----------------------------------
-# DeepSeek AI Generator
-# -----------------------------------
-def ai_generate(prompt_text):
-    """
-    Universal AI generator for:
-    - reply
-    - daily message
-    - romantic message
-    """
+# ---------------------------------------------------------
+# GROQ AI GENERATOR (FREE FOREVER)
+# ---------------------------------------------------------
+def ai_generate(prompt):
     try:
-        url = "https://api.deepseek.com/v1/chat/completions"
+        url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {DEEPSEEK_KEY}"
+            "Authorization": f"Bearer {GROQ_KEY}",
+            "Content-Type": "application/json"
         }
 
-        payload = {
-            "model": "deepseek-chat",
-            "messages": [{"role": "user", "content": prompt_text}],
-            "max_tokens": 120,
-            "temperature": 0.9,
+        data = {
+            "model": "llama3-8b-8192",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.8,
+            "max_tokens": 100
         }
 
-        res = requests.post(url, headers=headers, json=payload).json()
+        res = requests.post(url, headers=headers, json=data).json()
 
         if "error" in res:
-            log(f"DEEPSEEK ERROR: {res['error']}")
-            return "Baby thodu error thayu… pan tu perfect lage che ❤️"
+            log(f"GROQ ERROR: {res['error']}")
+            return "Baby, AI ma thodu error che… pan tu perfect che ❤️"
 
         return res["choices"][0]["message"]["content"].strip()
 
     except Exception as e:
         log(f"AI EXCEPTION: {e}")
-        return "Aww baby cute che tu ❤️"
+        return "Aww cute lagti che tu ❤️"
 
 
-# -----------------------------------
-# Create AI prompt for reply
-# -----------------------------------
+# ---------------------------------------------------------
+# Prompt builder for normal replies
+# ---------------------------------------------------------
 def build_reply_prompt(text):
     return f"""
 You are Hardik texting his fiancée.
 
-Language:
-- Gujarati + Hinglish mix
-- Soft, romantic, playful
-- Reply maximum 20–25 words
-- Tone must sound like a real boyfriend, not AI
-- If she flirts → flirt cute
-- If she is upset → reply calming
-- If normal text → reply sweetly
+Tone:
+- Gujarati + Hinglish
+- Romantic, caring, playful, sweet
+- Max 20–25 words
+- Reply like a real boyfriend
 
 Her message:
 {text}
 
-Now generate your reply:
+Generate reply:
 """
 
 
-# -----------------------------------
-# Daily Message Scheduler
-# -----------------------------------
+# ---------------------------------------------------------
+# Daily Scheduler (10:00 AM)
+# ---------------------------------------------------------
 def scheduler():
     while True:
         try:
             cid = get_chat_id()
-            if cid:
-                now = datetime.datetime.now()
+            now = datetime.datetime.now()
 
-                if now.hour == 10 and now.minute == 0:
-                    prompt = """
-Give one short Gujarati/Hinglish cute romantic message.
-Max 20 words.
-Very sweet and loving.
+            if cid and now.hour == 10 and now.minute == 0:
+                prompt = """
+Generate one cute Gujarati/Hinglish good morning romantic message.
+Max 20 words. Sweet, loving.
 """
-                    msg = ai_generate(prompt)
-                    send_msg(cid, f"🌞 Good Morning Message:\n\n{msg}")
-                    time.sleep(60)
+                msg = ai_generate(prompt)
+                send_msg(cid, f"🌞 Good Morning Baby:\n\n{msg}")
+                time.sleep(60)
 
             time.sleep(20)
 
@@ -139,17 +131,17 @@ Very sweet and loving.
 threading.Thread(target=scheduler, daemon=True).start()
 
 
-# -----------------------------------
-# Flask Home
-# -----------------------------------
+# ---------------------------------------------------------
+# HOME
+# ---------------------------------------------------------
 @app.route("/", methods=["GET"])
 def home():
-    return "DeepSeek AI Telegram Bot Running", 200
+    return "Groq AI Telegram Bot Running ❤️", 200
 
 
-# -----------------------------------
-# Webhook Receiver
-# -----------------------------------
+# ---------------------------------------------------------
+# WEBHOOK (MAIN AI LOGIC)
+# ---------------------------------------------------------
 @app.route("/", methods=["POST"])
 def webhook():
     try:
@@ -165,20 +157,22 @@ def webhook():
 
         save_chat_id(chat_id)
 
-        # Forward to dev (you)
+        # Dev mirror
         if DEV_CHAT_ID:
             send_msg(DEV_CHAT_ID, f"Her: {text}")
 
         # Romantic trigger
-        if any(x in text.lower() for x in ["love you", "miss you", "❤️", "😍"]):
-            p = """
-Create a super romantic Gujarati/Hinglish message,
-Max 20 words, emotional and warm.
+        if any(x in text.lower() for x in ["love you", "miss you", "❤️", "😘", "😍"]):
+            romantic_prompt = """
+Generate a short Gujarati/Hinglish romantic line.
+Very loving, emotional.
+Max 20 words.
 """
-            send_msg(chat_id, ai_generate(p))
+            reply = ai_generate(romantic_prompt)
+            send_msg(chat_id, reply)
             return "OK", 200
 
-        # Normal conversational reply
+        # Normal reply:
         prompt = build_reply_prompt(text)
         reply = ai_generate(prompt)
         send_msg(chat_id, reply)
@@ -189,9 +183,9 @@ Max 20 words, emotional and warm.
     return "OK", 200
 
 
-# -----------------------------------
-# Run App
-# -----------------------------------
+# ---------------------------------------------------------
+# SERVER START
+# ---------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
