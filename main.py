@@ -55,32 +55,33 @@ def get_chat_id():
 # ---------------------------------------------------------
 # GROQ AI GENERATOR (FREE FOREVER)
 # ---------------------------------------------------------
-def ai_generate(prompt):
+def ai_generate(prompt_text):
     try:
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
-            "Authorization": f"Bearer {GROQ_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {GROQ_API_KEY}"
         }
 
-        data = {
-            "model": "llama3-8b-8192",
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.8,
-            "max_tokens": 100
+        payload = {
+            "model": "llama-3.1-8b-instant",
+            "messages": [{"role": "user", "content": prompt_text}],
+            "max_tokens": 120,
+            "temperature": 0.9,
         }
 
-        res = requests.post(url, headers=headers, json=data).json()
+        res = requests.post(url, headers=headers, json=payload).json()
 
         if "error" in res:
             log(f"GROQ ERROR: {res['error']}")
-            return "Baby, AI ma thodu error che… pan tu perfect che ❤️"
+            return "Baby thodu error thayu… pan tu perfect lage che ❤️"
 
         return res["choices"][0]["message"]["content"].strip()
 
     except Exception as e:
-        log(f"AI EXCEPTION: {e}")
-        return "Aww cute lagti che tu ❤️"
+        log(f"GROQ EXCEPTION: {e}")
+        return "Aww baby cute che tu ❤️"
+
 
 
 # ---------------------------------------------------------
