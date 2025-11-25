@@ -118,13 +118,15 @@ def scheduler():
             if cid and now.hour == 10 and now.minute == 0:
 
                 prompt = """
-Generate ONE message for girlfriend.
-Tone:
-- Hindi + English
-- Flirty, romantic, adult-clean
-- Double-meaning allowed but NO explicit vulgar words
-- Can be cute morning wish OR naughty hint OR fun adult joke
-- Max 25 words
+- Hindi + English mix
+- Deeply romantic, flirty, playful
+- Adult-clean: Double meaning allowed, seductive vibe okay, but NO vulgar or explicit words
+- Should feel like a cute, naughty, loving boyfriend teasing his girlfriend
+- Emotion-rich, warm, intimate, fun
+- High creativity
+- Can be a morning wish, a naughty hint, or a playful adult joke
+- Use poetic, emotional, or teasing style
+- Max 35 words
 """
 
                 msg = ai_generate(prompt)
