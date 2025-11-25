@@ -53,7 +53,7 @@ def get_chat_id():
 
 
 # ---------------------------------------------------------
-# GROQ AI GENERATOR (FREE FOREVER)
+# GROQ AI GENERATOR
 # ---------------------------------------------------------
 def ai_generate(prompt_text):
     try:
@@ -66,36 +66,38 @@ def ai_generate(prompt_text):
         payload = {
             "model": "llama-3.1-8b-instant",
             "messages": [{"role": "user", "content": prompt_text}],
-            "max_tokens": 120,
-            "temperature": 0.9,
+            "max_tokens": 150,
+            "temperature": 0.95,
         }
 
         res = requests.post(url, headers=headers, json=payload).json()
 
         if "error" in res:
             log(f"GROQ ERROR: {res['error']}")
-            return "Baby thodu error thayu… pan tu perfect lage che ❤️"
+            return "Baby thoda error aaya… par tu phir bhi cutest ho ❤️"
 
         return res["choices"][0]["message"]["content"].strip()
 
     except Exception as e:
         log(f"GROQ EXCEPTION: {e}")
-        return "Aww baby cute che tu ❤️"
+        return "Aww baby cute ho tum ❤️"
 
 
 
 # ---------------------------------------------------------
-# Prompt builder for normal replies
+# BUILD PROMPT — NORMAL REPLY (FLIRTY + ADULT-CLEAN)
 # ---------------------------------------------------------
 def build_reply_prompt(text):
     return f"""
 You are Hardik texting his fiancée.
 
 Tone:
-- Gujarati + Hinglish
-- Romantic, caring, playful, sweet
+- Hindi + English only
+- Boyfriend style
+- Flirty, teasing, romantic
+- Light adult vibe allowed but CLEAN (no explicit words)
+- Bold compliments, naughty hints, double meaning OK
 - Max 20–25 words
-- Reply like a real boyfriend
 
 Her message:
 {text}
@@ -105,7 +107,7 @@ Generate reply:
 
 
 # ---------------------------------------------------------
-# Daily Scheduler (10:00 AM)
+# DAILY SCHEDULER — ADULT CLEAN JOKES + FLIRTY LINES
 # ---------------------------------------------------------
 def scheduler():
     while True:
@@ -114,12 +116,19 @@ def scheduler():
             now = datetime.datetime.now()
 
             if cid and now.hour == 10 and now.minute == 0:
+
                 prompt = """
-Generate one cute Gujarati/Hinglish good morning romantic message.
-Max 20 words. Sweet, loving.
+Generate ONE message for girlfriend.
+Tone:
+- Hindi + English
+- Flirty, romantic, adult-clean
+- Double-meaning allowed but NO explicit vulgar words
+- Can be cute morning wish OR naughty hint OR fun adult joke
+- Max 25 words
 """
+
                 msg = ai_generate(prompt)
-                send_msg(cid, f"🌞 Good Morning Baby:\n\n{msg}")
+                send_msg(cid, f"🌞 Good Morning Baby ❤️\n\n{msg}")
                 time.sleep(60)
 
             time.sleep(20)
@@ -141,7 +150,7 @@ def home():
 
 
 # ---------------------------------------------------------
-# WEBHOOK (MAIN AI LOGIC)
+# WEBHOOK — MAIN AI LOGIC
 # ---------------------------------------------------------
 @app.route("/", methods=["POST"])
 def webhook():
@@ -158,22 +167,24 @@ def webhook():
 
         save_chat_id(chat_id)
 
-        # Dev mirror
+        # Mirror to dev
         if DEV_CHAT_ID:
             send_msg(DEV_CHAT_ID, f"Her: {text}")
 
-        # Romantic trigger
+        # Romantic triggers
         if any(x in text.lower() for x in ["love you", "miss you", "❤️", "😘", "😍"]):
             romantic_prompt = """
-Generate a short Gujarati/Hinglish romantic line.
-Very loving, emotional.
-Max 20 words.
+Generate a short romantic Hindi-English line.
+Tone:
+- Deep, emotional, warm
+- Boyfriend style
+- Max 20–25 words
 """
             reply = ai_generate(romantic_prompt)
             send_msg(chat_id, reply)
             return "OK", 200
 
-        # Normal reply:
+        # Normal flirty reply
         prompt = build_reply_prompt(text)
         reply = ai_generate(prompt)
         send_msg(chat_id, reply)
